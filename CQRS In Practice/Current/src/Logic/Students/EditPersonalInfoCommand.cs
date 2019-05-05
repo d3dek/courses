@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Logic.Decorators;
 using Logic.Dtos;
 using Logic.Utils;
 
@@ -87,19 +88,21 @@ namespace Logic.Students
         public string Email { get; }
     }
 
+    [DatabaseRetry]
+    [AuditLog]
     public sealed class EditPersonalInfoCommandHandler: ICommandHandler<EditPersonalInfoCommand>
     {
-        private readonly Utils.UnitOfWork _unitOfWork;
-        private object _studentRepository;
+        private readonly SessionFactory _sessionFactory;
 
-        public EditPersonalInfoCommandHandler(Utils.UnitOfWork unitOfWork)
+        public EditPersonalInfoCommandHandler(SessionFactory sessionFactory)
         {
-            this._unitOfWork = unitOfWork;
+            _sessionFactory = sessionFactory;
         }
 
         public Result Handle(EditPersonalInfoCommand command) 
         {
-            var studentRepository = new StudentRepository(_unitOfWork);
+            var unitOfWork = new UnitOfWork(_sessionFactory);
+            var studentRepository = new StudentRepository(unitOfWork);
             Student student = studentRepository.GetById(command.Id);
             if (student == null)
                 return Result.Fail($"No student found for Id {command.Id}");
@@ -107,7 +110,7 @@ namespace Logic.Students
             student.Name = command.Name;
             student.Email = command.Email;
 
-            _unitOfWork.Commit();
+            unitOfWork.Commit();
 
             return Result.Ok();
         }
